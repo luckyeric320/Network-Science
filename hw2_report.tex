@@ -13,7 +13,6 @@
 \usepackage{booktabs}
 \usepackage{caption}
 \usepackage{subcaption}
-\usepackage{enumitem}
 
 \geometry{margin=1in}
 
@@ -50,21 +49,12 @@
 %% ====================================================================
 \section{Gephi Visualization}
 
-The network dataset chosen for this visualization is the \textbf{US Airport} network, which represents flight routes between airports in the United States. Nodes correspond to airports and edges correspond to direct flight connections between them.
-
-The visualization was created using Gephi with the following settings:
-\begin{itemize}
-    \item \textbf{Layout:} ForceAtlas 2 (for spatial separation of clusters)
-    \item \textbf{Node size:} Scaled by degree centrality (hub airports appear larger)
-    \item \textbf{Edge color:} Gradient based on edge weight
-\end{itemize}
-
-The resulting visualization clearly shows the hub-and-spoke structure characteristic of the US airline network, with major hubs (e.g., ATL, ORD, DFW) having significantly higher connectivity.
+I chose the \textbf{US Airport} network for this task: nodes are airports and edges are direct flight routes. The dataset was imported into Gephi and laid out with ForceAtlas~2. Node sizes are scaled by degree centrality, and edge colors follow a gradient based on weight. The hub-and-spoke structure of the US airline system is clearly visible, with major hubs like ATL, ORD, and DFW standing out.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{output/q1_visualization_US_airports.png}
-    \caption{Gephi visualization of the US Airport network. Node size reflects degree centrality; edge colors represent route density.}
+    \caption{Gephi visualization of the US Airport network.}
     \label{fig:q1_gephi}
 \end{figure}
 
@@ -76,9 +66,9 @@ The resulting visualization clearly shows the hub-and-spoke structure characteri
 %% ---- 2(a) ----
 \subsection{(a) Constructing a Small World Network}
 
-\subsubsection*{Network Class Implementation}
+\subsubsection*{Network Class}
 
-The \texttt{UndirectedGraph} class stores the graph as a dictionary mapping each node to its list of neighbors. The five required functions are implemented as follows:
+The graph is stored as a dictionary \texttt{connections} mapping each node to its neighbor list. The five required methods:
 
 \begin{lstlisting}[caption={HasNode and AddNode}]
 def HasNode(self, node):
@@ -89,7 +79,7 @@ def AddNode(self, node):
         self.connections[node] = []
 \end{lstlisting}
 
-\begin{lstlisting}[caption={AddEdge --- adds nodes first, then creates undirected edge if it does not exist}]
+\begin{lstlisting}[caption={AddEdge}]
 def AddEdge(self, node1, node2):
     self.AddNode(node1)
     self.AddNode(node2)
@@ -97,6 +87,8 @@ def AddEdge(self, node1, node2):
         self.connections[node1].append(node2)
         self.connections[node2].append(node1)
 \end{lstlisting}
+
+\texttt{AddEdge} first ensures both nodes exist, then appends each to the other's neighbor list (undirected), skipping duplicates.
 
 \begin{lstlisting}[caption={GetNodes and GetNeighbors}]
 def GetNodes(self):
@@ -106,9 +98,9 @@ def GetNeighbors(self, node):
     return self.connections[node][:]   # return a copy
 \end{lstlisting}
 
-\subsubsection*{Small World Network Construction}
+\subsubsection*{Small World Construction}
 
-The ring graph is built by connecting each node $i$ to nodes $(i+j) \bmod L$ for $j = 1, \ldots, Z/2$. Because the graph is undirected, each \texttt{AddEdge} call automatically creates both directions, so iterating only over positive offsets suffices. The modulo operation implements periodic boundary conditions.
+The ring graph connects each node $i$ to $(i+j) \bmod L$ for $j = 1, \ldots, Z/2$. Since \texttt{AddEdge} handles both directions, iterating over positive offsets alone gives each node $Z$ neighbors. The modulo implements periodic boundary conditions.
 
 \begin{lstlisting}[caption={MakeRingGraph}]
 def MakeRingGraph(num_nodes, Z):
@@ -122,9 +114,9 @@ def MakeRingGraph(num_nodes, Z):
     return g
 \end{lstlisting}
 
-Random shortcuts are added by selecting two distinct nodes uniformly at random. The \texttt{AddEdge} function internally prevents duplicate edges.
+Shortcuts are added by picking two distinct random nodes and calling \texttt{AddEdge} (which silently skips if the edge already exists):
 
-\begin{lstlisting}[caption={MakeSmallWorldNetwork (Watts--Newman variant)}]
+\begin{lstlisting}[caption={MakeSmallWorldNetwork}]
 def MakeSmallWorldNetwork(L, Z, p):
     g = MakeRingGraph(L, Z)
     num_shortcuts = int(p * Z * L / 2)
@@ -132,31 +124,25 @@ def MakeSmallWorldNetwork(L, Z, p):
     return g
 \end{lstlisting}
 
-\subsubsection*{Verification of Periodic Boundary Conditions}
+\subsubsection*{Periodic Boundary Verification}
 
-For $L=20$, $Z=4$, $p=0.2$:
-\begin{itemize}
-    \item Node 0 neighbors: $\{1, 2, 18, 19, \ldots\}$ (includes ring wrapping plus random shortcuts)
-    \item Node 19 neighbors: $\{0, 1, 17, 18, \ldots\}$ (correctly wraps around)
-\end{itemize}
-
-Figure~\ref{fig:q2a} shows the network with gray ring edges and red shortcut edges.
+With $L=20$, $Z=4$, $p=0.2$: node~0 has neighbors $\{1, 2, 18, 19, \ldots\}$ and node~19 has $\{0, 1, 17, 18, \ldots\}$, confirming correct wrap-around. Figure~\ref{fig:q2a} shows the result (gray = ring edges, red = shortcuts).
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.55\textwidth]{output/q2a_smallworld_L20_Z4_p02.png}
-    \caption{Small world network with $L=20$, $Z=4$, $p=0.2$. Gray edges are ring connections; red edges are random shortcuts.}
+    \caption{Small world network, $L=20$, $Z=4$, $p=0.2$.}
     \label{fig:q2a}
 \end{figure}
 
 %% ---- 2(b) ----
 \subsection{(b) Measuring Minimum Distances Between Nodes}
 
-\subsubsection*{BFS Algorithm}
+\subsubsection*{BFS Implementation}
 
-\texttt{FindPathLengthsFromNode} implements a breadth-first search that expands outward in shells:
+\texttt{FindPathLengthsFromNode} does a breadth-first expansion in shells: start from \texttt{node} at distance 0, then repeatedly look at all unvisited neighbors of the current shell and assign them distance $\ell+1$.
 
-\begin{lstlisting}[caption={FindPathLengthsFromNode --- BFS}]
+\begin{lstlisting}[caption={FindPathLengthsFromNode}]
 def FindPathLengthsFromNode(graph, node):
     distances = {node: 0}
     l = 0
@@ -173,7 +159,7 @@ def FindPathLengthsFromNode(graph, node):
     return distances
 \end{lstlisting}
 
-\texttt{FindAllPathLengths} calls the BFS from every node and collects all pairwise distances. \texttt{FindAveragePathLength} averages over all pairs.
+\texttt{FindAllPathLengths} runs this BFS from every node and collects all pairwise distances into a dictionary. \texttt{FindAveragePathLength} simply averages those values.
 
 \begin{lstlisting}[caption={FindAllPathLengths and FindAveragePathLength}]
 def FindAllPathLengths(graph):
@@ -194,12 +180,12 @@ def FindAveragePathLength(graph):
 
 \subsubsection*{Verification at $p=0$}
 
-For a ring graph ($p=0$) with $L=100$, $Z=2$, path lengths range from $1$ to $L/Z = 50$, and the histogram is constant (uniform), as expected.
+For $L=100$, $Z=2$, $p=0$, paths range from 1 to $L/Z = 50$ and the histogram is flat, as expected for a ring.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.65\textwidth]{output/q2b_histogram_p0_verify.png}
-    \caption{Path length histogram for $L=100$, $Z=2$, $p=0$. The distribution is uniform for $0 < \ell < L/Z = 50$, confirming the implementation.}
+    \caption{Path length histogram at $p=0$ ($L=100$, $Z=2$). Uniform over $0 < \ell < 50$.}
     \label{fig:q2b_p0}
 \end{figure}
 
@@ -209,14 +195,14 @@ For a ring graph ($p=0$) with $L=100$, $Z=2$, path lengths range from $1$ to $L/
     \centering
     \begin{tabular}{cccc}
         \toprule
-        $p$ & Number of shortcuts & Average path length $\langle \ell \rangle$ & Max path length \\
+        $p$ & Shortcuts & $\langle \ell \rangle$ & Max $\ell$ \\
         \midrule
         0 (ring)  & 0   & 250.25 & 500 \\
         0.02      & 20  & 50.87  & 120 \\
         0.2       & 200 & 11.69  & 26  \\
         \bottomrule
     \end{tabular}
-    \caption{Path length statistics for $L=1000$, $Z=2$ at different values of $p$.}
+    \caption{Path length statistics for $L=1000$, $Z=2$.}
     \label{tab:q2b}
 \end{table}
 
@@ -224,14 +210,14 @@ For a ring graph ($p=0$) with $L=100$, $Z=2$, path lengths range from $1$ to $L/
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \includegraphics[width=\textwidth]{output/q2b_circle_L1000_Z2_p0.02.png}
-        \caption{Circle graph, $p=0.02$}
+        \caption{$p=0.02$}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \includegraphics[width=\textwidth]{output/q2b_circle_L1000_Z2_p0.2.png}
-        \caption{Circle graph, $p=0.2$}
+        \caption{$p=0.2$}
     \end{subfigure}
-    \caption{Small world networks with $L=1000$, $Z=2$.}
+    \caption{Circle graphs for $L=1000$, $Z=2$.}
     \label{fig:q2b_circles}
 \end{figure}
 
@@ -239,24 +225,20 @@ For a ring graph ($p=0$) with $L=100$, $Z=2$, path lengths range from $1$ to $L/
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \includegraphics[width=\textwidth]{output/q2b_histogram_L1000_Z2_p0.02.png}
-        \caption{Histogram, $p=0.02$}
+        \caption{$p=0.02$}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \includegraphics[width=\textwidth]{output/q2b_histogram_L1000_Z2_p0.2.png}
-        \caption{Histogram, $p=0.2$}
+        \caption{$p=0.2$}
     \end{subfigure}
-    \caption{Path length distributions for $L=1000$, $Z=2$.}
+    \caption{Path length histograms for $L=1000$, $Z=2$.}
     \label{fig:q2b_histograms}
 \end{figure}
 
 \subsubsection*{Analysis}
 
-\begin{itemize}
-    \item At $p=0.02$, only 20 random shortcuts reduce the average path length from 250 to $\approx 51$ --- a factor of $\sim\!5$ reduction. The distribution shifts from uniform to roughly bell-shaped.
-    \item At $p=0.2$, 200 shortcuts further reduce the average to $\approx 12$, with the distribution concentrated at short distances.
-    \item The dramatic reduction at small $p$ demonstrates the \textbf{small-world effect}: a few long-range connections drastically shorten typical paths.
-\end{itemize}
+At $p=0.02$, just 20 random shortcuts cut the average path from 250 down to about 51---a $5\times$ reduction. The distribution shifts from uniform to roughly bell-shaped. At $p=0.2$ (200 shortcuts) the average drops further to about 12, with almost all paths shorter than 26. This is the small-world effect: a handful of long-range links drastically shorten typical distances.
 
 \subsubsection*{Six Degrees of Separation}
 
@@ -271,82 +253,64 @@ For a ring graph ($p=0$) with $L=100$, $Z=2$, path lengths range from $1$ to $L/
         2.0 & 4.10 \\
         \bottomrule
     \end{tabular}
-    \caption{Average path length for larger $p$ values ($L=1000$, $Z=2$).}
+    \caption{$\langle \ell \rangle$ for larger $p$ ($L=1000$, $Z=2$).}
 \end{table}
 
-To achieve ``six degrees of separation'' ($\langle \ell \rangle \approx 6$), we need approximately $p \approx 1.0$ for this network size.
+Getting $\langle \ell \rangle \approx 6$ requires roughly $p \approx 1.0$ at this network size.
 
-\subsubsection*{Verification of $\langle \ell \rangle$ at $Z=2$, $L=100$, $p=0.1$}
+\subsubsection*{Check: $Z=2$, $L=100$, $p=0.1$}
 
-Running \texttt{FindAveragePathLength} several times with $Z=2$, $L=100$, $p=0.1$ yields $\langle \ell \rangle \approx 10$, consistent with the expected value.
+Running \texttt{FindAveragePathLength} a few times gives $\langle \ell \rangle \approx 10$, matching the expected value.
 
 %% ---- 2(c) ----
 \subsection{(c) Plotting Average Path Length}
 
-Figure~\ref{fig:q2c} plots $\ell(p)/\ell(0)$ for $Z=2$, $L=50$ on a semi-log scale from $p=0.001$ to $p=1$. Error bars represent the standard deviation over multiple network realizations.
+Figure~\ref{fig:q2c} shows $\ell(p)/\ell(0)$ for $Z=2$, $L=50$ on a semi-log plot. Error bars are standard deviations over multiple realizations.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{output/q2c_pathlength_vs_p.png}
-    \caption{Normalized average path length $\ell(p)/\ell(0)$ vs.\ $p$ for $L=50$, $Z=2$. The curve exhibits the characteristic Watts--Strogatz transition.}
+    \caption{$\ell(p)/\ell(0)$ vs.\ $p$ ($L=50$, $Z=2$).}
     \label{fig:q2c}
 \end{figure}
 
-The curve shows:
-\begin{itemize}
-    \item For $p < 0.01$: $\ell(p)/\ell(0) \approx 1$, shortcuts are too few to have an effect.
-    \item For $0.03 < p < 0.1$: a sharp drop, the onset of the small-world regime.
-    \item For $p > 0.3$: the ratio saturates at a low value ($\sim 0.3$).
-\end{itemize}
-This is consistent with Fig.~2 of Watts and Strogatz~\cite{watts1998}, with $p$ values shifted by a factor of $\sim\!100$ (due to the Watts--Newman model adding shortcuts rather than rewiring, and the smaller network size $L=50$).
+For $p < 0.01$ the ratio stays at 1 (too few shortcuts to matter). Around $p \sim 0.03$--$0.1$ there is a sharp drop, and for $p > 0.3$ it levels off around 0.3. The shape matches Fig.~2 of Watts and Strogatz~\cite{watts1998}, with $p$ shifted by about a factor of 100 since we use the Watts--Newman variant (adding shortcuts instead of rewiring) and a smaller $L$.
 
 %% ---- 2(d) ----
 \subsection{(d) Real Network Analysis}
 
-\subsubsection*{Dataset}
-
-The real network analyzed is \textbf{Zachary's Karate Club}~--- a well-known social network of 34 members of a university karate club, with 78 edges representing friendships.
-
-\subsubsection*{Path Length Distribution}
-
-\begin{itemize}
-    \item \textbf{Number of nodes:} 34
-    \item \textbf{Number of edges:} 78
-    \item \textbf{Mean shortest path length:} $\langle \ell \rangle = 2.408$
-\end{itemize}
+I used \textbf{Zachary's Karate Club}, a social network of 34 members (78 edges) of a university karate club. The mean shortest path length is $\langle \ell \rangle = 2.408$, and most pairs are 2--3 hops apart (Figure~\ref{fig:q2d_hist}).
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.65\textwidth]{output/q2d_real_network_histogram.png}
-    \caption{Path length distribution of Zachary's Karate Club. Most node pairs are separated by 2--3 hops.}
+    \caption{Path length distribution, Zachary's Karate Club.}
     \label{fig:q2d_hist}
 \end{figure}
 
 \subsubsection*{Betweenness Centrality}
 
-Betweenness centrality measures the fraction of all shortest paths that pass through a given node. Three nodes with the highest betweenness centrality are:
+The three nodes with the highest betweenness centrality are listed in Table~\ref{tab:q2d_bc}. Nodes~0 and~33 are the instructor and president who led the two factions that the club eventually split into; their high betweenness reflects that most inter-faction shortest paths go through them.
 
 \begin{table}[H]
     \centering
     \begin{tabular}{ccc}
         \toprule
-        Node & Betweenness Centrality & Role \\
+        Node & Betweenness & Role \\
         \midrule
-        0  & 0.4376 & Club instructor (Mr.\ Hi) \\
-        33 & 0.3041 & Club president (John A.) \\
-        32 & 0.1452 & Key bridge node \\
+        0  & 0.4376 & Instructor (Mr.\ Hi) \\
+        33 & 0.3041 & President (John A.) \\
+        32 & 0.1452 & Bridge node \\
         \bottomrule
     \end{tabular}
-    \caption{Betweenness centrality for the three most central nodes.}
+    \caption{Top-3 betweenness centrality.}
     \label{tab:q2d_bc}
 \end{table}
-
-Nodes 0 and 33 are the leaders of the two factions into which the club eventually split; their high betweenness reflects their roles as bridges connecting different parts of the network.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.7\textwidth]{output/q2d_real_network_betweenness.png}
-    \caption{Zachary's Karate Club with nodes colored by betweenness centrality (darker = higher).}
+    \caption{Karate Club colored by betweenness centrality (darker = higher).}
     \label{fig:q2d_bc}
 \end{figure}
 
@@ -356,133 +320,58 @@ Nodes 0 and 33 are the leaders of the two factions into which the club eventuall
 %% ====================================================================
 \section{Hospital Assignment (Network Flow)}
 
-\subsection*{Problem}
+\subsection*{Setup}
 
-Given $n$ injured people and $k$ hospitals, each person can only go to hospitals within half-hour driving distance. Each hospital can receive at most $\lceil n/k \rceil$ patients. Determine whether a feasible assignment exists.
+There are $n$ injured people and $k$ hospitals. Person~$i$ can only go to hospitals reachable within half an hour, and each hospital should receive at most $\lceil n/k \rceil$ patients.
 
-\subsection*{Network Flow Formulation}
+\subsection*{Flow Network}
 
-Construct a directed flow network $G = (V, E)$ with four layers of nodes:
+Build a directed graph with source~$s$, sink~$t$, a node for each person, and a node for each hospital:
 
-\begin{enumerate}
-    \item \textbf{Source $s$}: a single super-source.
-    \item \textbf{Person nodes} $p_1, p_2, \ldots, p_n$: one for each injured person.
-    \item \textbf{Hospital nodes} $h_1, h_2, \ldots, h_k$: one for each hospital.
-    \item \textbf{Sink $t$}: a single super-sink.
-\end{enumerate}
-
-\noindent\textbf{Edges and capacities:}
-\begin{itemize}
-    \item $s \to p_i$ with capacity $1$ for all $i = 1, \ldots, n$.\\
-    \textit{Ensures each person is assigned to exactly one hospital.}
-    \item $p_i \to h_j$ with capacity $1$, only if hospital $h_j$ is within half-hour driving distance of person $p_i$.\\
-    \textit{Encodes the reachability constraint.}
-    \item $h_j \to t$ with capacity $\lceil n/k \rceil$ for all $j = 1, \ldots, k$.\\
-    \textit{Enforces the load-balancing constraint.}
-\end{itemize}
-
-\begin{figure}[H]
-\centering
 \begin{equation*}
-    s \xrightarrow{\text{cap}=1} p_i \xrightarrow{\text{cap}=1\ (\text{if reachable})} h_j \xrightarrow{\text{cap}=\lceil n/k \rceil} t
+    s \xrightarrow{\;1\;} p_i \xrightarrow{\;1\;} h_j \xrightarrow{\;\lceil n/k \rceil\;} t
 \end{equation*}
-\caption*{Flow network structure for the hospital assignment problem.}
-\end{figure}
 
-\subsection*{Algorithm and Decision}
-
+Specifically:
 \begin{enumerate}
-    \item Build the flow network as described above.
-    \item Run a max-flow algorithm (e.g., Ford--Fulkerson or Edmonds--Karp).
-    \item \textbf{If max flow $= n$}: a feasible balanced assignment exists. For each person $p_i$, the hospital $h_j$ with $f(p_i \to h_j) = 1$ is the assignment.
-    \item \textbf{If max flow $< n$}: no feasible assignment exists under the given constraints.
+    \item Add edge $s \to p_i$ with capacity 1 for every person~$i$. This forces each person to be sent to exactly one hospital.
+    \item Add edge $p_i \to h_j$ with capacity 1 whenever hospital~$h_j$ is within half-hour driving distance of person~$p_i$.
+    \item Add edge $h_j \to t$ with capacity $\lceil n/k \rceil$ for every hospital~$j$. This caps the load per hospital.
 \end{enumerate}
 
-\subsection*{Correctness}
+Run max-flow (e.g.\ Edmonds--Karp) on this network. If the max flow equals~$n$, a balanced assignment exists and can be read off from the flow on $p_i \to h_j$ edges. If it is less than~$n$, no feasible assignment is possible.
 
-\begin{itemize}
-    \item The capacity 1 on $s \to p_i$ ensures each person is sent to \emph{exactly one} hospital.
-    \item Edges $p_i \to h_j$ exist only when $h_j$ is reachable from $p_i$, enforcing the distance constraint.
-    \item The capacity $\lceil n/k \rceil$ on $h_j \to t$ prevents any hospital from being overloaded.
-    \item Integrality of max-flow in networks with integer capacities guarantees an integer solution.
-\end{itemize}
+The integer capacity theorem guarantees that the max-flow will be integral, so each person is assigned to exactly one hospital. The network has $n + k + 2$ nodes and at most $n + nk + k$ edges.
 
-\subsection*{Time Complexity}
-
-The network has $|V| = n + k + 2$ nodes and $|E| = n + |\{(i,j) : h_j \text{ reachable from } p_i\}| + k$ edges. Using Edmonds--Karp, the running time is $O(|V| \cdot |E|^2)$.
 
 %% ====================================================================
 %% QUESTION 4
 %% ====================================================================
 \section{Balloon Measurement (Network Flow)}
 
-\subsection*{Problem}
+\subsection*{Setup}
 
-Given $m$ balloons and $n$ atmospheric conditions, each balloon $i$ can measure conditions in a set $S_i$ and can make at most 2 measurements. Each condition must be measured by at least $k$ different balloons. Determine feasibility.
+There are $m$ balloons, $n$ atmospheric conditions, and a redundancy requirement~$k$. Each balloon~$i$ can measure conditions in a set~$S_i$ and can take at most 2 measurements total. We need every condition measured by at least $k$ different balloons.
 
-\subsection*{Network Flow Formulation}
+\subsection*{Flow Network}
 
-Construct a directed flow network with four layers:
-
-\begin{enumerate}
-    \item \textbf{Source $s$}: a single super-source.
-    \item \textbf{Balloon nodes} $b_1, b_2, \ldots, b_m$: one for each balloon.
-    \item \textbf{Condition nodes} $c_1, c_2, \ldots, c_n$: one for each condition.
-    \item \textbf{Sink $t$}: a single super-sink.
-\end{enumerate}
-
-\noindent\textbf{Edges and capacities:}
-\begin{itemize}
-    \item $s \to b_i$ with capacity $2$ for all $i = 1, \ldots, m$.\\
-    \textit{Each balloon can make at most 2 measurements.}
-    \item $b_i \to c_j$ with capacity $1$, only if $c_j \in S_i$.\\
-    \textit{Balloon $i$ can only measure conditions in its capability set. The capacity of 1 prevents the same balloon from measuring the same condition twice.}
-    \item $c_j \to t$ with capacity $k$ for all $j = 1, \ldots, n$.\\
-    \textit{Each condition needs exactly $k$ measurements to be satisfied.}
-\end{itemize}
-
-\begin{figure}[H]
-\centering
 \begin{equation*}
-    s \xrightarrow{\text{cap}=2} b_i \xrightarrow{\text{cap}=1\ (\text{if } c_j \in S_i)} c_j \xrightarrow{\text{cap}=k} t
+    s \xrightarrow{\;2\;} b_i \xrightarrow{\;1\;} c_j \xrightarrow{\;k\;} t
 \end{equation*}
-\caption*{Flow network structure for the balloon measurement problem.}
-\end{figure}
-
-\subsection*{Algorithm and Decision}
 
 \begin{enumerate}
-    \item Build the flow network as described above.
-    \item Run a max-flow algorithm (e.g., Ford--Fulkerson or Edmonds--Karp).
-    \item \textbf{If max flow $= n \cdot k$}: a feasible measurement plan exists. Each unit of flow through edge $b_i \to c_j$ indicates that balloon $i$ measures condition $c_j$.
-    \item \textbf{If max flow $< n \cdot k$}: it is impossible to measure every condition $k$ times.
+    \item Edge $s \to b_i$ with capacity 2 for every balloon~$i$ (at most 2 measurements per balloon).
+    \item Edge $b_i \to c_j$ with capacity 1 whenever $c_j \in S_i$ (balloon can measure that condition; capacity~1 prevents measuring the same condition twice with the same balloon).
+    \item Edge $c_j \to t$ with capacity $k$ for every condition~$j$ (need $k$ measurements of each).
 \end{enumerate}
 
-\subsection*{Correctness}
+Run max-flow. If it equals $n \cdot k$, every condition can be covered $k$ times; otherwise it cannot.
 
-\begin{itemize}
-    \item The capacity 2 on $s \to b_i$ limits each balloon to at most 2 measurements.
-    \item The capacity 1 on $b_i \to c_j$ prevents the same balloon from measuring the same condition twice.
-    \item Edges $b_i \to c_j$ exist only when $c_j \in S_i$, respecting capability constraints.
-    \item The capacity $k$ on $c_j \to t$ ensures each condition receives exactly $k$ measurements when all $c_j \to t$ edges are saturated.
-    \item The total required flow is $n \cdot k$ ($n$ conditions, each requiring $k$ measurements).
-\end{itemize}
+\subsection*{Example Verification}
 
-\subsection*{Verification with the Given Example}
+Take $k=2$, $n=4$, $m=4$, with $S_1 = S_2 = \{c_1,c_2,c_3\}$ and $S_3 = S_4 = \{c_1,c_3,c_4\}$. Total supply is $4 \times 2 = 8$ and the required flow is $4 \times 2 = 8$. One feasible assignment: $b_1 \to c_1, c_2$;\; $b_2 \to c_2, c_3$;\; $b_3 \to c_3, c_4$;\; $b_4 \to c_1, c_4$. Total flow $= 8$. $\checkmark$
 
-With $k=2$, $n=4$ conditions $\{c_1, c_2, c_3, c_4\}$, $m=4$ balloons with $S_1 = S_2 = \{c_1, c_2, c_3\}$ and $S_3 = S_4 = \{c_1, c_3, c_4\}$:
-
-\begin{itemize}
-    \item Total supply from $s$: $4 \times 2 = 8$
-    \item Total demand at $t$: $4 \times 2 = 8$
-    \item Required max flow: $n \cdot k = 4 \times 2 = 8$
-\end{itemize}
-
-One feasible flow: $b_1 \to c_1$, $b_1 \to c_2$, $b_2 \to c_2$, $b_2 \to c_3$, $b_3 \to c_3$, $b_3 \to c_4$, $b_4 \to c_1$, $b_4 \to c_4$. Each edge carries 1 unit, and the total flow is 8. This matches the example assignment in the problem statement. $\checkmark$
-
-\subsection*{Time Complexity}
-
-The network has $|V| = m + n + 2$ nodes and $|E| = m + \sum_{i=1}^{m} |S_i| + n$ edges. Using Edmonds--Karp, the running time is $O(|V| \cdot |E|^2)$.
+The network has $m + n + 2$ nodes and $m + \sum_i |S_i| + n$ edges.
 
 
 %% ====================================================================
