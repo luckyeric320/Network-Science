@@ -49,7 +49,7 @@
 %% ====================================================================
 \section{Gephi Visualization}
 
-I chose the \textbf{US Airport} network for this task: nodes are airports and edges are direct flight routes. The dataset was imported into Gephi and laid out with ForceAtlas~2. Node sizes are scaled by degree centrality, and edge colors follow a gradient based on weight. The hub-and-spoke structure of the US airline system is clearly visible, with major hubs like ATL, ORD, and DFW standing out.
+I chose the \textbf{US Airport} network for this task: nodes are airports and edges are direct flight routes. The dataset was imported into Gephi and laid out with ForceAtlas~2. Edge colors range from pink to olive-green. Several clusters of densely connected airports are visible, with a few nodes serving as hubs that concentrate many long-range connections.
 
 \begin{figure}[H]
     \centering
@@ -180,12 +180,12 @@ def FindAveragePathLength(graph):
 
 \subsubsection*{Verification at $p=0$}
 
-For $L=100$, $Z=2$, $p=0$, paths range from 1 to $L/Z = 50$ and the histogram is flat, as expected for a ring.
+For $L=100$, $Z=2$, $p=0$, paths range from 1 to $L/Z = 50$. The histogram (Figure~\ref{fig:q2b_p0}) shows a constant frequency of $\approx 0.020$ for $1 \le \ell \le 49$, with a half-height bar at $\ell = 50$ ($\approx 0.010$) because diametrically opposite nodes can only be reached from one direction. This matches the expected uniform distribution for a ring.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.65\textwidth]{output/q2b_histogram_p0_verify.png}
-    \caption{Path length histogram at $p=0$ ($L=100$, $Z=2$). Uniform over $0 < \ell < 50$.}
+    \caption{Path length histogram at $p=0$ ($L=100$, $Z=2$).}
     \label{fig:q2b_p0}
 \end{figure}
 
@@ -238,7 +238,7 @@ For $L=100$, $Z=2$, $p=0$, paths range from 1 to $L/Z = 50$ and the histogram is
 
 \subsubsection*{Analysis}
 
-At $p=0.02$, just 20 random shortcuts cut the average path from 250 down to about 51---a $5\times$ reduction. The distribution shifts from uniform to roughly bell-shaped. At $p=0.2$ (200 shortcuts) the average drops further to about 12, with almost all paths shorter than 26. This is the small-world effect: a handful of long-range links drastically shorten typical distances.
+At $p=0.02$ (20 shortcuts), $\langle\ell\rangle$ drops from 250 to 50.87, and the histogram becomes a symmetric hump peaking around $\ell \approx 55$ with a long tail out to $\ell = 120$. At $p=0.2$ (200 shortcuts), $\langle\ell\rangle = 11.69$ and the distribution is a narrower peak centered at $\ell \approx 12$, with all paths below 26. The change from $p=0.02$ to $p=0.2$ is a further $4\times$ compression, but the most striking reduction happens already at small~$p$: 20 shortcuts alone cut the average by a factor of~5.
 
 \subsubsection*{Six Degrees of Separation}
 
@@ -274,7 +274,7 @@ Figure~\ref{fig:q2c} shows $\ell(p)/\ell(0)$ for $Z=2$, $L=50$ on a semi-log plo
     \label{fig:q2c}
 \end{figure}
 
-For $p < 0.01$ the ratio stays at 1 (too few shortcuts to matter). Around $p \sim 0.03$--$0.1$ there is a sharp drop, and for $p > 0.3$ it levels off around 0.3. The shape matches Fig.~2 of Watts and Strogatz~\cite{watts1998}, with $p$ shifted by about a factor of 100 since we use the Watts--Newman variant (adding shortcuts instead of rewiring) and a smaller $L$.
+From the data: $\ell(p)/\ell(0) = 1.0$ for all $p \le 0.018$, then drops to 0.96 at $p=0.032$, 0.75 at $p=0.056$, 0.56 at $p=0.1$, and reaches 0.24 at $p=1.0$. The transition region is around $p \sim 0.03$--$0.1$. The overall shape matches Fig.~2 of Watts and Strogatz~\cite{watts1998}, with $p$ shifted by about a factor of 100 (we add shortcuts instead of rewiring, and $L=50$ is smaller).
 
 %% ---- 2(d) ----
 \subsection{(d) Real Network Analysis}
@@ -310,7 +310,7 @@ The three nodes with the highest betweenness centrality are listed in Table~\ref
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.7\textwidth]{output/q2d_real_network_betweenness.png}
-    \caption{Karate Club colored by betweenness centrality (darker = higher).}
+    \caption{Karate Club colored by betweenness centrality (redder = higher; see colorbar).}
     \label{fig:q2d_bc}
 \end{figure}
 
